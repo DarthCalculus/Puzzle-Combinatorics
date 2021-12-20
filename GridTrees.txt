@@ -1,0 +1,301 @@
+with(combinat):
+
+printf("grid_trees_fixed_rows(r) computes the sequence A_r(n), which gives "):
+printf("the number of spanning trees on the r by n rectangle grid, "):
+printf("such that each vertex has degree 1 or 3"):
+printf("\nTry grid_trees_fixed_rows(3)"):
+
+
+grid_trees_fixed_rows := proc(r)
+local foo1:
+	foo1:=gen_fun(r):
+	printf("The first ten terms of the sequence are:\n"):
+	print(seq(coeff(taylor(foo1,x,11),x,i),i=1..10)):
+	printf("The ordinary generating function in the variable x is given by: \n"):
+	print(foo1):
+end:
+
+
+
+gen_states := proc(r)
+local T,toRet,s:
+	toRet:=[]:
+	T:=cartprod([powerset(r),setpartition({seq(i,i=1..r)})]):
+	while not(T[finished]) do
+		s:=T[nextvalue]():
+		if intermediate_state(s) or s=end_state(r) then
+			toRet:= [op(toRet),s]:
+		fi:
+	od:
+	toRet:
+end:
+
+	
+start_state := proc(s,r)
+local p: 
+	for p in s[2] do
+		
+		if nops(p) = 1 then 
+			if not( min(p) in s[1] ) then 
+				RETURN(false):
+			fi:
+		elif nops(p) = 2 then
+			RETURN(false):
+		
+		else
+			if max(p)-min(p) <> nops(p)-1 or (p intersect s[1] <> p minus {min(p),max(p)}) then
+				RETURN(false):
+			fi:
+		fi:
+	od:
+	RETURN(true):
+end:
+
+intermediate_state := proc(s,r)
+local p: 
+	
+	for p in s[2] do
+		if p intersect s[1] = {} then
+			RETURN(false):
+		fi:
+	od:
+	RETURN(true):
+end:
+
+#returns unique endstate
+end_state := proc(r)
+	[{},{{seq(i,i=1..r)}}]:
+end:
+
+
+gen_fun := proc(r)
+local mynodes,mysymbols,data,n2,c,eqs,n1,ids,foo ,vert,horiz,diag,foo1:
+
+	mynodes := gen_states(r):
+	mysymbols := powerset(2*r-1):
+
+	data := []:
+	for n1 from 1 to nops(mynodes) do
+		data:=[op(data),forward_transitions(r,mynodes,n1,mysymbols)]:
+		#print(mynodes[n1], nops(forward_transitions(3,mynodes,n1,mysymbols))):
+	od:	
+
+	
+	eqs := {}:
+	for n1 from 1 to nops(mynodes) do
+		ids := []:
+		for n2 from 1 to nops(mynodes) do
+		
+			#does n2 come before n1
+			for c in data[n2] do
+				if mynodes[n1] = c[2] then
+					ids:=[op(ids),n2]:
+					break:
+				fi:
+			od:
+		od:
+		
+		if start_state(mynodes[n1],r) then
+		#if n1 = 36 or n1 = 15 then 
+			eqs := eqs union {x[n1] = x+ x*(add(x[i], i in ids))}:
+		else
+			eqs := eqs union {x[n1] = x*(add(x[i], i in ids))}:
+		fi:
+		
+	od:
+	foo:=solve(eqs,{seq(x[i],i=1..nops(mynodes))}):
+	
+	simplify(rhs(foo[1])):
+	
+	
+end:
+
+
+forward_transitions:= proc(r,states,j,symbols) 
+local state,toRet,ok,s,k,i,tot,p1,p2,z,pp1,used,rs,ls,l:
+	state:= states[j]:
+	
+	toRet := []:
+	if state = end_state(r) then 
+		RETURN(toRet):
+	fi:
+	
+	
+	for k from 1 to nops(symbols) do:
+		s:=symbols[k]:
+		ok := true:
+		
+		
+		
+		
+		for i from 1 to r do
+			if (i in state[1] and not(2*i-1 in s)) or (not(i in state[1]) and 2*i-1 in s) then
+				ok := false:
+			fi:
+		od:
+		
+		if not(ok) then 
+			next:
+		fi:	
+	
+		p1:={}:
+		p2:={}:
+		pp1 := {1}:
+		
+		for z from 1 to r do
+			i := 2*z - 1:
+			tot := nops({i-1,i,i+1} intersect s):
+			
+			if tot = 0 or tot = 2 then
+				p1 := p1 union {z}:
+			fi:
+			
+			
+
+			if i+1 in s then 
+				pp1 := pp1 union {z,z+1}:
+			else
+				p2:= p2 union {pp1}:
+				pp1 := {z+1}:
+			
+			fi:
+			
+			
+				
+			
+		od:
+		#print("state",state):
+		#print("s",s):
+		#print("p1",p1):
+		#print("p2",p2):
+		used := {}:
+		
+		for z from 1 to r do
+			if z in used or not(z in state[1]) then
+				next:
+			fi:
+			
+			used := used union {z}:
+			ls := set_search(state[2],z):
+			rs := set_search(p2,z):
+			for l in (ls intersect state[1]) minus {z} do
+				if l in used then
+					print("HI"):
+					next:
+				fi:
+				if l in rs then
+					ok := false:
+					break:
+				else 
+					p2 := set_merge(p2,z,l):
+					rs := set_search(p2,z):
+					used:= used union {l}:
+				fi:
+				
+			od:	
+			if not(ok) then
+				break:
+			fi:
+		od:
+		if not(ok) then
+			next:
+		fi:		
+		
+		#print("p2fixed",p2):
+		
+		toRet := [op(toRet),[s,[p1,p2]]]:
+	
+	
+	od:
+	toRet:
+end:
+
+startsolver:=proc(symbols,r,depth)
+local toRet,s,ok,s1,res,k,dots:
+	dots := (r+1)/2 * (depth + 1) :
+	if irem(dots ,2) = 1 then
+		RETURN([]):
+	fi:
+	toRet := []:
+	for k from 1 to nops(symbols) do:
+		s:=symbols[k]:
+		ok := true:
+		for s1 in s do
+			if irem(s1,2) = 1 then
+				ok := false:
+				break:
+			fi:
+		od:
+		if ok then
+			res:=solver(symbols,r,depth,k,dots/2-1):
+			res:=[seq(   [k,op(res[i])], i = 1..nops(res)  )]:
+			toRet:=[op(toRet),op(res)]:
+		fi:
+	od:
+	toRet:
+end:
+
+
+solver:=proc(symbols,r,depth,init,count)
+local toRet,ft,s,res,es:
+	toRet:=[]:
+	ft:=forward_transitions(symbols,r,init):
+	if depth = 1 then
+		for s in ft do
+			es := endstate(r,symbols[s[1]]):
+			if es + s[2] = count and es >= 0 then 
+				toRet := [op(toRet),[s[1]]]:
+			fi:
+		od:
+		RETURN(toRet):
+	fi:
+	for s in ft do
+		res:=solver(symbols,r,depth-1,s[1],count-s[2]):
+		res:=[seq(   [s[1],op(res[i])], i = 1..nops(res)  )]:
+		toRet:=[op(toRet),op(res)]:
+	od:
+
+	toRet:
+end:
+
+endstate:=proc(r,state) 
+local i,tot,count:
+	count := 0:
+	for i from 1 to r by 2 do
+		tot:= nops({i-1,i,i+1} intersect state):
+		if tot = 3 then 
+			count := count + 1:
+		fi:
+		if not(tot = 1 or tot = 3) then
+			RETURN (-1):
+		fi:
+	od:
+	count:
+end:
+
+set_search := proc(ss,i)
+local x:
+	for x in ss do
+		if i in x then
+			RETURN(x):
+		fi:
+	od:
+	#print(ss,i):
+	RETURN(0):
+end:
+
+set_merge := proc(ss,i1,i2) 
+local s1,s2:
+	s1 := set_search(ss,i1):
+	s2 := set_search(ss,i2):
+	(ss minus {s1,s2}) union {s1 union s2}:  
+end:
+
+
+
+
+
+
+
+
+

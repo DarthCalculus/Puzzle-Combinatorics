@@ -1,0 +1,86 @@
+with(combinat):
+
+
+
+# the generating function of the sequence a(n) that counts the number of 
+# 0-1 matrices with k rows, n columns, each coluumn has sum r, and subject 
+# the parameters, a list of length 3 containing 0-1 values.
+# The parameters specify whether 2 ones can appear next to each other
+# vertically, horizontally, and diagonally, respectively
+# Try gen_fun(5,2,[1,1,0])
+
+gen_fun := proc(k,r,parameters)
+local mynodes,eqs,n1,ids,foo ,vert,horiz,diag:
+	if parameters[1] = 1 then
+		vert := true:
+	else
+		vert := false:
+	fi:
+	if parameters[2] = 1 then
+		horiz := true:
+	else
+		horiz := false:
+	fi:
+	if parameters[3] = 1 then
+		diag := true:
+	else
+		diag := false:
+	fi:
+
+
+	mynodes := create_symbols(k,r,vert):
+	eqs := {}:
+	for n1 from 1 to nops(mynodes) do
+		
+		ids := transitions(n1,k,mynodes,horiz,diag)	:
+		
+		
+		eqs := eqs union {x[n1] = x*(1+add(x[i], i in ids))}:
+		
+	od:
+	foo:=solve(eqs,{seq(x[i],i=1..nops(mynodes))}):
+	return(simplify(add(rhs(foo[a]),a=1..nops(mynodes)))):
+end:
+
+create_symbols := proc(k,r,vert)
+local sym,i,j:
+
+	sym:=choose(k,r):
+	if vert then 
+		for i from nops(sym) to 1 by -1 do
+			for j from 1 to k-1 do
+				if j in sym[i] and j+1 in sym[i] then
+					sym := subsop(i=NULL,sym):
+					break:
+				fi:
+			od:
+		od:
+	fi:
+	sym:
+end:
+
+transitions := proc(i,k,symbols,horiz,diag) 
+local s, toRet, blocked, j:
+	s := symbols[i]:
+	toRet:=[]:
+	blocked := {}:
+	for j from 1 to k do
+		if j in s then
+			if horiz then
+				blocked := blocked union {j}: 
+			fi:
+			if diag then
+				blocked := blocked union {j-1,j+1}: 
+			fi:
+		fi:
+	od:
+	
+	for j from 1 to nops(symbols) do
+		if blocked intersect {op(symbols[j])} <> {} then
+			next:
+		fi:
+		toRet := [op(toRet),j]:
+	od:
+	RETURN(toRet):
+
+end:

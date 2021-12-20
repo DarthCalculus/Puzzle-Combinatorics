@@ -1,0 +1,188 @@
+
+print( `Try gen_fun(2)`):
+
+with(combinat):
+
+
+# these nodes represent which rows currently 
+# have a rectangle in progress
+nodes := proc(n) local i:
+  nodesHelp([seq(i,i=1..n)],choose(n,2)):
+end:
+
+nodesHelp := proc(rows,pairs) 
+local p, newpairs, toRet, rect1, newrows, len, i, rec:
+
+	if nops(rows) < 2 or nops(pairs) < 1 then
+		return([{}])
+	fi:
+	p := pairs[1]:
+	  
+	newpairs := subsop(1=NULL, pairs):
+	toRet := nodesHelp(rows,newpairs):
+	  
+	newrows := rows:	
+	for i from nops(rows) to 1 by -1 do
+		if row[i] = p[1] or row[i] = p[2] then
+			newrows := subsop(i=NULL,newrows):
+		fi:
+	od:
+	
+	len := nops(newpairs):
+	for i from len to 1 by -1 do
+		if {p[1],p[2]} intersect {newpairs[i][1],newpairs[i][2]} <> {} then
+			newpairs := subsop(i=NULL,newpairs):
+		fi:
+	od:
+	  
+	rec := nodesHelp(newrows,newpairs):
+	
+	return([op(toRet), seq( {p} union rec[i], i=1..nops(rec))]):
+	
+end:
+
+# returns the index of node in nodes
+getindex := proc(nodes,node)
+local i:
+	for i from 1 to nops(nodes) do
+		if node = nodes[i] then 
+			return(i):
+		fi:
+	od:
+	print(BADSEARCH):
+end:
+
+# the generating function for the sequence counting the number of k by n
+# ring ring solutions on an empty grid. input an integer n 
+# (currently can handle up to n=8) and the corresponding sequence is for 
+# increasing k
+gen_fun := proc(n)
+local mynodes, n1,eqs,ids,i,t1:
+	mynodes := nodes(n):
+	for n1 in mynodes do
+		
+		ids := {seq(getindex(mynodes,t1),t1 in transitions(n,n1))}:
+		
+		if n1 = {} then 
+			eqs := {x[1] = 1 + x*add(x[i], i in ids)}:
+		else
+			eqs := eqs union {x[getindex(mynodes,n1)] = x*add(x[i], i in ids)}:
+		fi:
+	od:
+	rhs(solve(eqs,{seq(x[i],i=1..nops(mynodes))})[1]):
+end:
+
+
+#node should be an element of nodes(n)
+#returns a list of nodes, i.e. elements of nodes(n)
+transitions := proc(n,node) 
+local pow, toRet,p:
+	pow := powerset(node):
+	toRet := []:
+	for p in pow do
+		toRet := [op(toRet),op(transitions1(n,node,p))]:
+	od:
+	toRet:
+end:
+
+
+#node should be an element of nodes(n),
+#closes should be a subset of node
+#returns a list of nodes, i.e. elements of nodes(n)
+transitions1 := proc(n, node, closes) 
+local i, state1, pair, freeslots, going, slot, results, s, T, goods, g1, toRet, opens:
+
+	state1 := [0$n]:
+	
+	# 1 = straight, 2 = leftdown, 3 = leftup
+	
+	for pair in node do
+		if pair in closes then
+			state1[pair[1]] := 2:
+			state1[pair[2]] := 3:
+		else
+			state1[pair[1]] := 1:
+			state1[pair[2]] := 1:
+		fi:
+	od:
+	freeslots := []:
+	going := false:
+	slot := []:
+	for i from 1 to n do
+		if going = false then
+			if state1[i] = 0 then
+				slot := [op(slot),i]:
+			elif state1[i] = 1 then
+			
+			elif state1[i] = 2 then
+				going := true:
+				if nops(slot) = 1 then 
+					return({})
+				elif nops(slot) > 1 then
+					freeslots := [op(freeslots),slot]:
+				fi:
+				slot := []:
+			elif state1[i] = 3 then
+				print(BAD1):
+			else 
+				print(BAD2):
+			fi:
+			
+		else 
+			if state1[i] = 0 then
+				
+			elif state1[i] = 1 then
+			
+			elif state1[i] = 2 then
+				return({}):
+			elif state1[i] = 3 then
+				going := false:
+			else 
+				print(BAD2):
+			fi:
+		fi:
+	od:
+	if going = true then
+		print(BAD3):
+	fi:
+	if nops(slot) = 1 then 
+		return({})
+	elif nops(slot) > 1 then
+		freeslots := [op(freeslots),slot]:
+	fi:
+	
+	results := []:
+	for s in freeslots do
+		results := [op(results), slot_possibilities(s)]:
+	od:
+	T:=cartprod(results):
+	
+	goods := node minus closes:
+	toRet := []:
+	
+	while not T[finished] do 
+		opens := T[nextvalue]():
+		g1 := goods:
+		for s in opens do
+			g1 := g1 union {op(s)}:
+		od:
+		toRet := [op(toRet),g1]:
+	od:
+	toRet:
+end:
+
+#returns a list of ways you can divide up a slot for new rectangles,
+# each way is itself a list of pairs taking up the whole slot
+slot_possibilities := proc(slot) local rec1,rec2,i:
+	if nops(slot) = 2 then
+		return([[slot]]):
+	elif nops(slot) = 3 then
+		return([[[slot[1],slot[3]]]]):
+	fi:
+	rec1 := slot_possibilities(subsop(1=NULL,slot)):
+	rec2 := slot_possibilities(subsop(1=NULL,2=NULL,slot)):
+	
+	[seq(  subsop(1=[slot[1],rec1[i][1][2]],rec1[i])  ,i=1..nops(rec1)),
+ 	seq(  [[slot[1],slot[2]],op(rec2[i])]             ,i=1..nops(rec2))]:
+
+end:
