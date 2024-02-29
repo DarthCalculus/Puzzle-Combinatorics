@@ -1,0 +1,125 @@
+
+gen_symbols := proc()
+#RETURN YOUR SET OF SYMBOLS
+{0,1,2}:
+end:
+
+gen_states := proc(r, symbols)
+# RETURN A LIST
+# PUT THE INITIAL STATE FIRST
+
+# THIS USES THE PREVIOUS COLUMN AS THE STATE
+# If you also want to do that, don't change this function
+# The initial state is the -1 column, indicating no column has been read yet
+gen_columns(r,symbols):
+end:
+
+
+#is the state s an accept state?
+is_final := proc(s)
+return(true):
+end:
+
+
+# THE COLUMN OF -1 IS FOR THE PURPOSES OF INITIALIZING
+gen_columns := proc(r, symbols)
+local L,T,i,j,c:
+L := [[(-1)$r]]:
+T:=combinat:-cartprod([seq([seq(i,i=1..nops(symbols))],j=1..r)]):
+while not T[finished] do 
+c:=T[nextvalue]():
+L := [op(L),[seq(symbols[c[i]],i=1..r)]]:
+od:
+
+L:
+end:
+
+
+valid_trans := proc(s1,s2,r,symbols)
+local c,C:
+C := gen_columns(r,symbols):
+#for c in C do
+#CHECK if the column c would transition s1 to s2
+#return(true):
+#od:
+
+# In this example we will check whether adjacent entries are 
+# not equal mod 3
+require_distinct_mod3(s1,s2):
+
+end:
+
+require_distinct_mod3 := proc(s1,s2)
+local i:
+#DON'T FORGET TO THINK ABOUT INITIALIZATION
+# The -1 checks are dealing with that for us here
+if -1 in s2 then return(false): fi:
+for i from 1 to nops(s2)-1 do
+	if s2[i] mod 3 = s2[i+1] mod 3 then return(false): fi:
+od:
+if -1 in s1 then return(true): fi:
+for i from 1 to nops(s2) do
+	if s2[i] mod 3 = s1[i] mod 3 then return(false): fi:
+od:
+true:
+end:
+
+
+
+# Transition Matrix
+TM := proc(r):
+local sym,S,i,j,M:
+
+# ADD YOUR SYMBOLS TO THIS SET
+sym := gen_symbols(): 
+
+S := gen_states(r,sym):
+M:=Matrix(nops(S)+1,nops(S)+1):
+for i from 1 to nops(S) do
+for j from 1 to nops(S) do
+
+	if valid_trans(S[i],S[j],r,sym) then
+		M[i,j] := 1:
+
+	fi:
+	
+od:
+	if is_final(S[i]) then 
+		M[i,-1] := 1:
+	fi:	
+od: 
+M:
+end:
+
+
+# Computes the first n terms of the sequence giving the number of valid configurations
+# r is the number of rows
+comp_seq := proc(r,n)
+local M,N,L,i:
+L := []:
+M := TM(r):
+N := M:
+for i from 1 to n do
+N := N.M:
+L := [op(L),N[1][-1]]:
+od:
+L:
+end:
+
+
+# Computes the generating function for comp_seq(r,n)
+gen_fun:=proc(r) local A,A2,d:
+
+A:=TM(r):
+d:=(LinearAlgebra:-Dimension(A))[1]:
+A2 := ((LinearAlgebra:-IdentityMatrix(d))-x*A)^(-1):
+#print(A,A2,A2[1][d]):
+simplify((A2[1][d])/x):
+
+end:
+
+
+
+
+
+
